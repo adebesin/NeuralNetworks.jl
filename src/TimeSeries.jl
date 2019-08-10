@@ -1,8 +1,9 @@
-import Flux: Flux, LSTM, Chain, normalise
+import Flux: Flux, LSTM, Chain, normalise, softmax, Dense, onehot, chunk, batchseq, throttle, ADAM
 import DataFrames: DataFrames, by, DataFrame, first
 import CSV: CSV, File
 import Dates: Dates, Date, DateFormat
 import MLDataUtils: MLDataUtils, splitobs
+import Base.Iterators: partition
 # TODO use LSTM neural network to forecast
 #=
 
@@ -23,3 +24,24 @@ raw.Price = normalise(raw.Price) # TODO also test scaling between 0 and 1
 sort!(raw, cols = [:Date]) # Sort by date ascending
 
 xtrain, xtest = splitobs(raw, at = 0.6)
+
+scanner = LSTM(length(xtrain.Price), 20)
+encoder = Dense(20, length(xtrain.Price))
+
+function model(x)
+    state = scanner.(x.data)[end]
+    reset!(scanner)
+    softmax(encoder(state))
+end
+
+
+loss(x, y) = crossentropy(model(x), y)
+
+# Working with sequences
+model.(xtrain.Price)
+
+ps = Flux.params(scanner, encoder)
+opt = ADAM(0.01)
+xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
+
+Flux.train!(loss, ps, xtrainprice, opt)

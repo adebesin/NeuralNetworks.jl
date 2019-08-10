@@ -143,3 +143,27 @@ N = 32
 
 batches.(Dense(28^2, N, leakyrelu))
 decoder = Dense(N, 28^2, leakyrelu) |> gpu
+
+
+model = Chain(
+    LSTM(10, 15),
+    LSTM(15, 15),
+    Dense(15, 10),
+    softmax
+)
+
+function loss(x, y)
+  l = Flux.mse(model(x), y)
+  Flux.reset!(m)
+  return l
+end
+
+ps = Flux.params(model)
+opt = ADAM(0.01)
+Flux.train!(loss, ps, xtrain.Price, opt)
+
+const seqlen = 50
+const nbatch = 50
+
+Xs = collect(partition(chunk(xtrain.Price, nbatch), seqlen))
+Ys = collect(partition(batchseq(chunk(text[2:end], nbatch), stop), seqlen))
