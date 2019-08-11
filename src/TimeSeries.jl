@@ -27,40 +27,37 @@ raw.Date = todate.(raw.Date)
 raw.Price = normalise(raw.Price) # TODO also test scaling between 0 and 1
 sort!(raw, cols = [:Date]) # Sort by date ascending
 
+
+
 xtrain, xtest = splitobs(raw, at = 0.6)
 xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
 xtrainpricelength = length(xtrainprice)
 
-seq = [rand(10) for i = 1:10]
 
-typeof(seq)
-rand(10)
+price = convert(Array{Float64, 1}, raw.Price)
+pricelength = length(price)
 
-chunked = chunk(xtrainprice, 117)
 
-const model = Chain(
-    LSTM(50, 15),
-    Dense(15, 5),
-    softmax
+# Use the previous price to predict the next price
+xtrain = price[1:2:pricelength]
+ytrain = price[2:2:pricelength]
+
+dataiterator = Iterators.repeated((xtrain, ytrain), 110)
+
+model = Chain(
+  LSTM(xtrainpricelength, 4849),
+  LSTM(4849, 4849),
+  Dense(4849, xtrainpricelength),
+  softmax
 )
 
-function loss(x, y)
-  l = crossentropy(model(x), y)
-  Flux.reset!(m)
+function loss(xs, ys)
+  l = crossentropy(model(xs), ys)
+  Flux.truncate!(m)
   return l
 end
 
-
-output = model.(chunked)
-
-crossentropy(output, xtrainprice)
-
-
-# Working with sequences
-typeof(xtrainprice)
-
 ps = Flux.params(model)
 opt = ADAM(0.01)
-xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
 
-Flux.train!(loss, ps, xtrainprice, opt)
+Flux.train!(loss, ps, dataiterator, opt)

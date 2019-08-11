@@ -184,3 +184,34 @@ m = Chain(LSTM(10, 15), Dense(15, 5))
 scanner = LSTM(length(xtrainprice), 20)
 encoder = Dense(20, length(xtrainprice))
 batches(xs, p) = [batchseq(b, p) for b in partition(xs, 50)]
+
+chunked = chunk(xtrainprice, 117)
+
+
+partitioned = partition(xtrainprice, 1) |> collect
+
+typeof(partitioned)
+
+const chain = Chain(
+    LSTM(1, 15),
+    Dense(15, 5),
+    softmax
+)
+
+function model(x)
+  state = chain.(x)[end]
+  reset!(chain)
+end
+
+output = model(xtrainprice)
+xtrainprice
+loss(x, y) = crossentropy(model(x), y)
+
+ps = Flux.params(chain)
+opt = ADAM(0.01)
+
+Flux.train!(loss, ps, partitioned, opt)
+
+
+batches(xs, p) = [batchseq(b, p) for b in partition(xs, 50)]
+crossentropy([1,2,3], [4,5,6])
