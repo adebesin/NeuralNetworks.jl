@@ -215,3 +215,57 @@ Flux.train!(loss, ps, partitioned, opt)
 
 batches(xs, p) = [batchseq(b, p) for b in partition(xs, 50)]
 crossentropy([1,2,3], [4,5,6])
+
+
+model = Chain(
+  LSTM(xtrainpricelength, 4849),
+  LSTM(4849, 4849),
+  Dense(4849, xtrainpricelength),
+  softmax
+)
+
+price = convert(Array{Float64, 1}, raw.Price)
+pricelength = length(price)
+
+
+# Use the previous price to predict the next price
+xtrain = price[1:2:pricelength]
+ytrain = price[2:2:pricelength]
+xtrainlength = length(xtrain)
+length(xtrain)
+
+dataiterator = Iterators.repeated((xtrain, ytrain), 5)
+
+model = Chain(
+  LSTM(xtrainlength, xtrainlength),
+  softmax
+)
+
+function loss(xs, ys)
+  l = crossentropy(model.(xs), ys)
+  Flux.truncate!(m)
+  return l
+end
+
+ps = Flux.params(model)
+opt = ADAM(0.01)
+
+Flux.train!(loss, ps, dataiterator, opt)
+
+dataiterator = Iterators.repeated((xtrain, ytrain), 5)
+
+model = Chain(
+  LSTM(xtrainlength, xtrainlength),
+  softmax
+)
+
+function loss(xs, ys)
+  l = crossentropy(model.(xs), ys)
+  Flux.truncate!(m)
+  return l
+end
+
+ps = Flux.params(model)
+opt = ADAM(0.01)
+
+Flux.train!(loss, ps, dataiterator, opt)

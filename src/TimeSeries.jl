@@ -29,9 +29,8 @@ sort!(raw, cols = [:Date]) # Sort by date ascending
 
 
 
-xtrain, xtest = splitobs(raw, at = 0.6)
-xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
-xtrainpricelength = length(xtrainprice)
+# xtrain, xtest = splitobs(raw, at = 0.6)
+# xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
 
 
 price = convert(Array{Float64, 1}, raw.Price)
@@ -41,23 +40,39 @@ pricelength = length(price)
 # Use the previous price to predict the next price
 xtrain = price[1:2:pricelength]
 ytrain = price[2:2:pricelength]
+xtrainlength = length(xtrain)
 
-dataiterator = Iterators.repeated((xtrain, ytrain), 110)
+# dataiterator = Iterators.repeated((xtrain, ytrain), 1)
+const epochs = 2
+dataiterator = Iterators.repeated((xtrain, xtrain), epochs)
 
-model = Chain(
-  LSTM(xtrainpricelength, 4849),
-  LSTM(4849, 4849),
-  Dense(4849, xtrainpricelength),
+
+# Todo create labels
+
+const scanner = Chain(
+  LSTM(xtrainlength, xtrainlength),
   softmax
 )
+const encoder = Chain(
+    Dense(xtrainlength, xtrainlength)
+)
 
-function loss(xs, ys)
-  l = crossentropy(model(xs), ys)
-  Flux.truncate!(m)
-  return l
+function model(x)
+    state = scanner.(x)[end]
+    reset!(scanner)
+    softmax(encoder(state))
 end
 
-ps = Flux.params(model)
+#
+# function model(xs, ys)
+#   l = crossentropy(model.(xs), ys)
+#   Flux.truncate!(m)
+#   return l
+# end
+
+loss(x, y) = crossentropy(model(x), y) # Compare the model output to the actual value
+
+ps = Flux.params(scanner, encoder)
 opt = ADAM(0.01)
 
 Flux.train!(loss, ps, dataiterator, opt)
