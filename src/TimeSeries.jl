@@ -1,4 +1,4 @@
-import Flux: Flux, LSTM, Chain, normalise, softmax, Dense, onehot, chunk, batchseq, throttle, ADAM
+import Flux: Flux, LSTM, Chain, normalise, softmax, Dense, onehot, chunk, batchseq, throttle, ADAM, reset!, onehot, onehotbatch, crossentropy
 import DataFrames: DataFrames, by, DataFrame, first
 import CSV: CSV, File
 import Dates: Dates, Date, DateFormat
@@ -9,6 +9,10 @@ import Base.Iterators: partition
 
 1) Split train test. Split at January 1, 2010 where train is between January 2, 1980 and December 31, 2009,
 2) Normalize the dataset. You only need to fit and transform your training data and just transform your test data
+
+Notes
+
+Use reset! for sequences?
 
 =#
 
@@ -24,23 +28,38 @@ raw.Price = normalise(raw.Price) # TODO also test scaling between 0 and 1
 sort!(raw, cols = [:Date]) # Sort by date ascending
 
 xtrain, xtest = splitobs(raw, at = 0.6)
+xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
+xtrainpricelength = length(xtrainprice)
 
-scanner = LSTM(length(xtrain.Price), 20)
-encoder = Dense(20, length(xtrain.Price))
+seq = [rand(10) for i = 1:10]
 
-function model(x)
-    state = scanner.(x.data)[end]
-    reset!(scanner)
-    softmax(encoder(state))
+typeof(seq)
+rand(10)
+
+chunked = chunk(xtrainprice, 117)
+
+const model = Chain(
+    LSTM(50, 15),
+    Dense(15, 5),
+    softmax
+)
+
+function loss(x, y)
+  l = crossentropy(model(x), y)
+  Flux.reset!(m)
+  return l
 end
 
 
-loss(x, y) = crossentropy(model(x), y)
+output = model.(chunked)
+
+crossentropy(output, xtrainprice)
+
 
 # Working with sequences
-model.(xtrain.Price)
+typeof(xtrainprice)
 
-ps = Flux.params(scanner, encoder)
+ps = Flux.params(model)
 opt = ADAM(0.01)
 xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
 

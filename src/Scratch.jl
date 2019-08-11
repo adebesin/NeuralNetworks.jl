@@ -167,3 +167,20 @@ const nbatch = 50
 
 Xs = collect(partition(chunk(xtrain.Price, nbatch), seqlen))
 Ys = collect(partition(batchseq(chunk(text[2:end], nbatch), stop), seqlen))
+
+
+scanner = LSTM(length(xtrainprice), 20)
+encoder = Dense(20, length(xtrainprice))
+
+function model(x)
+    state = scanner.(x)[end]
+    reset!(scanner)
+    softmax(encoder(state))
+end
+
+m = Chain(LSTM(10, 15), Dense(15, 5))
+
+
+scanner = LSTM(length(xtrainprice), 20)
+encoder = Dense(20, length(xtrainprice))
+batches(xs, p) = [batchseq(b, p) for b in partition(xs, 50)]
