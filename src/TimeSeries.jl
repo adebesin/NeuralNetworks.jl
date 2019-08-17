@@ -1,4 +1,4 @@
-import Flux: Flux, LSTM, Chain, normalise, softmax, Dense, onehot, chunk, batchseq, throttle, ADAM, reset!, onehot, onehotbatch, crossentropy
+import Flux: Flux, LSTM, Chain, normalise, softmax, Dense, chunk, batchseq, throttle, ADAM, reset!, onehot, onehotbatch, crossentropy
 import DataFrames: DataFrames, by, DataFrame, first
 import CSV: CSV, File
 import Dates: Dates, Date, DateFormat
@@ -18,61 +18,23 @@ Use reset! for sequences?
 
 raw = File("resource/usd_inr.csv") |> DataFrame
 
-first(raw, 10)
-
 dateformat = DateFormat("u d, yyyy")
 todate = x -> Date(x, dateformat)
+
+XTrain = Vector{Array{Float64, 1}}
+YTrain = Vector{Array{Float64, 0}}
 
 raw.Date = todate.(raw.Date)
 raw.Price = normalise(raw.Price) # TODO also test scaling between 0 and 1
 sort!(raw, cols = [:Date]) # Sort by date ascending
 
 
-
-# xtrain, xtest = splitobs(raw, at = 0.6)
-# xtrainprice = convert(Array{Float64, 1}, xtrain.Price)
-
-
-price = convert(Array{Float64, 1}, raw.Price)
-pricelength = length(price)
+toxtrain = x -> convert(XTrain, x)
+toytrain = x -> convert(YTrain, x)
 
 
-# Use the previous price to predict the next price
-xtrain = price[1:2:pricelength]
-ytrain = price[2:2:pricelength]
-xtrainlength = length(xtrain)
+prices = convert(Array{Float64, 1}, raw.Price)
 
-# dataiterator = Iterators.repeated((xtrain, ytrain), 1)
-const epochs = 2
-dataiterator = Iterators.repeated((xtrain, xtrain), epochs)
-
-
-# Todo create labels
-
-const scanner = Chain(
-  LSTM(xtrainlength, xtrainlength),
-  softmax
-)
-const encoder = Chain(
-    Dense(xtrainlength, xtrainlength)
-)
-
-function model(x)
-    state = scanner.(x)[end]
-    reset!(scanner)
-    softmax(encoder(state))
-end
-
-#
-# function model(xs, ys)
-#   l = crossentropy(model.(xs), ys)
-#   Flux.truncate!(m)
-#   return l
-# end
-
-loss(x, y) = crossentropy(model(x), y) # Compare the model output to the actual value
-
-ps = Flux.params(scanner, encoder)
-opt = ADAM(0.01)
-
-Flux.train!(loss, ps, dataiterator, opt)
+batchedprices = MLDataUtils.slidingwindow(index->index+2, prices, 10, stride=1)
+xtrain = first.(batchedprices) |> toxtrain
+ytrain = last.(batchedprices) |> toytrain

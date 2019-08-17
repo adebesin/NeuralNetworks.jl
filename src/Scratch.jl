@@ -269,3 +269,51 @@ ps = Flux.params(model)
 opt = ADAM(0.01)
 
 Flux.train!(loss, ps, dataiterator, opt)
+
+
+
+pricelength = length(price)
+
+
+# Use the previous price to predict the next price
+xtrain = price[1:2:pricelength]
+ytrain = price[2:2:pricelength]
+xtrainlength = length(xtrain)
+
+
+
+
+# dataiterator = Iterators.repeated((xtrain, ytrain), 1)
+const epochs = 2
+dataiterator = Iterators.repeated((xtrain, xtrain), epochs)
+
+
+# Todo create labels
+
+const scanner = Chain(
+  LSTM(xtrainlength, xtrainlength),
+  softmax
+)
+const encoder = Chain(
+    Dense(xtrainlength, xtrainlength)
+)
+
+function model(x)
+    state = scanner.(x)[end]
+    reset!(scanner)
+    softmax(encoder(state))
+end
+
+#
+# function model(xs, ys)
+#   l = crossentropy(model.(xs), ys)
+#   Flux.truncate!(m)
+#   return l
+# end
+
+loss(x, y) = crossentropy(model(x), y) # Compare the model output to the actual value
+
+ps = Flux.params(scanner, encoder)
+opt = ADAM(0.01)
+
+Flux.train!(loss, ps, dataiterator, opt)
