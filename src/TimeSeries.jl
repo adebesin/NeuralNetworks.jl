@@ -32,30 +32,23 @@ raw.Price = normalise(raw.Price) # TODO also test scaling between 0 and 1
 sort!(raw, :Date) # Sort by date ascending
 prices = convert(Array{Float64, 1}, raw.Price)
 
-function batchprices(prices::Array{Float64, 1}, xlen::Int64)
-    xtrain = chunk(prices, xlen)
-    ytrain = pop!.(xtrain)
-    xtrain, ytrain
-end
-
-function batchprices(prices::Array{Int64, 1}, xlen::Int64)
-    xtrain = chunk(prices, xlen)
-    ytrain = pop!.(xtrain)
-    xtrain, ytrain
-end
-
-function batchprices(prices::UnitRange{Int64}, xlen::Int64)
-    xtrain = chunk(prices, xlen)
-    ytrain = pop!.(xtrain)
-    xtrain, ytrain
-end
+#TODO split data 70/30 then extract xtrain,ytrain from the 70 and xtest,ytest from the 30
 
 xtrain = partition(batchseq(chunk(prices, 5), 0), 50) |> collect
 ytrain = partition(batchseq(chunk(prices[2:end], 5), 0), 50) |> collect
 
+function minibatch(x::Array{Float64, 1}, chunksize::Int64, partitionsize::Int64)
+    xchunk, ychunk = chunk(x, chunksize), chunk(x[2:end], chunksize)
+    xbatch, ybatch = batchseq(xchunk, 0), batchseq(ychunk, 0)
+    xtrain = partition(xbatch, partitionsize) |> collect
+    ytrain = partition(ybatch, partitionsize) |> collect
+    xtrain, ytrain
+end
+
 const model = Chain(
     LSTM(5, 1),
     Dense(1, 1)
+    # TODO softmax?
 )
 
 function loss(xs, ys)

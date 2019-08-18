@@ -377,3 +377,21 @@ dummy = 1:30
 batchseq([[1,2,3], [[1,2,3],[4,5,6],[7,8,9],[10,11,12]]], 0)
 chunk([1,2,3,4,5], 2)
 jj = batchseq([[1,2,3], [4,5,6]], 2)
+
+function batchprices(prices::Array{Float64, 1}, xlen::Int64)
+    xtrain = chunk(prices, xlen)
+    ytrain = pop!.(xtrain)
+    xtrain, ytrain
+end
+
+function batchprices(prices::Array{Int64, 1}, xlen::Int64)
+    xtrain = chunk(prices, xlen)
+    ytrain = pop!.(xtrain)
+    xtrain, ytrain
+end
+
+function batchprices(prices::UnitRange{Int64}, xlen::Int64)
+    xtrain = chunk(prices, xlen)
+    ytrain = pop!.(xtrain)
+    xtrain, ytrain
+end
