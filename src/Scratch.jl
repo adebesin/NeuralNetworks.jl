@@ -317,3 +317,63 @@ ps = Flux.params(scanner, encoder)
 opt = ADAM(0.01)
 
 Flux.train!(loss, ps, dataiterator, opt)
+
+
+dataiterator = Iterators.repeated((xtrain, ytrain), epochs)
+collect(partition(batchseq(chunk([1,2,3,4,5,6,6,7,8,9,10], 5), 0), 5))
+
+dd = batchseq([[1,2,3], [[1,2,3], [4,5,6], [7,8,9]]], 0)
+m.()
+function batchprices(prices::Array{Float64, 1})::SubArray{Float64,1,Array{Float64,1}}
+    batchedprices = MLDataUtils.slidingwindow(index->index+2, prices, 10, stride=1)
+    acc = []
+    for t in batchedprices
+        append!(acc, collect(t))
+    end
+    return acc
+end
+
+convert(Array{Float64, Float64}, batchedprices[1])
+for i in batchedprices
+    m.(i)
+end
+
+
+# Todo create labels
+toxtrain = x -> convert(XTrain, x)
+toytrain = x -> convert(YTrain, x)
+
+toxtrain(xtrain)
+
+const scanner = Chain(
+  LSTM(9688, 9688),
+  softmax
+)
+const encoder = Chain(
+    Dense(9688, 10)
+)
+
+function model(x)
+    state = scanner.(x)[end]
+    reset!(scanner)
+    softmax(encoder(state))
+end
+
+
+loss(x, y) = crossentropy(model(x), y) # Compare the model output to the actual value
+ps = Flux.params(scanner, encoder)
+opt = ADAM(0.01)
+
+Flux.train!(loss, ps, batchedprices, opt)
+
+seq = [rand(10) for i = 1:10]
+m = Chain(LSTM(10, 15), Dense(15, 5))
+size(seq)
+y = batchprices(prices)
+m.(y)
+
+m.([[1,2,3]; [1,2,3]])
+dummy = 1:30
+batchseq([[1,2,3], [[1,2,3],[4,5,6],[7,8,9],[10,11,12]]], 0)
+chunk([1,2,3,4,5], 2)
+jj = batchseq([[1,2,3], [4,5,6]], 2)
