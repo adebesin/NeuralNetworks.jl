@@ -395,3 +395,18 @@ function batchprices(prices::UnitRange{Int64}, xlen::Int64)
     ytrain = pop!.(xtrain)
     xtrain, ytrain
 end
+
+
+function minibatch(x::Array{Float64, 1}, chunksize::Int64, partitionsize::Int64)
+    xchunk, ychunk = chunk(x, chunksize), chunk(x[2:end], chunksize)
+    xbatch, ybatch = batchseq(xchunk, 0), batchseq(ychunk, 0)
+    xtrain = partition(xbatch, partitionsize) |> collect
+    ytrain = partition(ybatch, partitionsize) |> collect
+    xtrain, ytrain
+end
+
+function minibatch(x::Array{Float64, 1}, range::UnitRange{Int64}, chunksize::Int64, partitionsize::Int64, pad::Float64)
+    chunked = chunk(x[range], chunksize)
+    batched = batchseq(chunked, pad)
+    partition(batched, partitionsize)
+end
