@@ -410,3 +410,18 @@ function minibatch(x::Array{Float64, 1}, range::UnitRange{Int64}, chunksize::Int
     batched = batchseq(chunked, pad)
     partition(batched, partitionsize)
 end
+
+function minibatch(x::Array{Int64, 1}, range::UnitRange{Int64}, chunksize::Int64, partitionsize::Int64, pad::Int64)
+    chunked = chunk(x[range], chunksize)
+    batched = batchseq(chunked, pad)
+    partition(batched, partitionsize)
+end
+#TODO split data 70/30 then extract xtrain,ytrain from the 70 and xtest,ytest from the 30
+#
+# xtrain = partition(batchseq(chunk(prices, 5), 0), 50) |> collect
+# ytrain = partition(batchseq(chunk(prices[2:end], 5), 0), 50) |> collect
+
+
+x1 = minibatch(baz, 2:length(baz), 5, 50, 0) |> collect
+x2 = minibatch(baz, 1:length(baz), 5, 50, 0) |> collect
+getindex.(collectedxtrain[1:10], 2)

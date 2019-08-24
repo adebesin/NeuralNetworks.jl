@@ -1,11 +1,11 @@
-import Flux: Flux, LSTM, Chain, normalise, softmax, Dense, chunk, batchseq, throttle, ADAM, reset!, onehot, onehotbatch, crossentropy, mse, @epochs
+import Flux: Flux, LSTM, Chain, normalise, softmax, Dense, chunk, batchseq, throttle, ADAM, reset!, onehot, onehotbatch, crossentropy, mse, @epochs, Tracker
 import DataFrames: DataFrames, by, DataFrame, first
 import CSV: CSV, File
 import Dates: Dates, Date, DateFormat
 import MLDataUtils: MLDataUtils, splitobs
 import Base.Iterators: partition
 import LinearAlgebra: transpose
-
+import StatsPlots: plot
 # Todo use LSTM neural network to forecast
 #=
 
@@ -17,8 +17,24 @@ Notes
 Use reset! for sequences?
 
 =#
-const epochs = 10
 
+
+const epochs = 10
+const chunksize = 5
+
+struct Batch
+    x::Array{Float64, 1}
+    range::UnitRange{Int64}
+    chunksize::Int64
+    partitionsize::Int64
+    pad::Float64
+end
+
+function minibatch(batch::Batch)
+    chunked = chunk(batch.x[batch.range], batch.chunksize)
+    batched = batchseq(chunked, batch.pad)
+    partition(batched, batch.partitionsize)
+end
 
 raw = File("resource/usd_inr.csv") |> DataFrame
 
@@ -34,36 +50,19 @@ raw.Price = normalise(raw.Price) # TODO also test scaling between 0 and 1
 sort!(raw, :Date) # Sort by date ascending
 prices = convert(Array{Float64, 1}, raw.Price)
 
-#TODO split data 70/30 then extract xtrain,ytrain from the 70 and xtest,ytest from the 30
-typeof(prices)
+train, validation, test = splitobs(prices, (.5, .3))
+plot(train)
 
-xtrain = partition(batchseq(chunk(prices, 5), 0), 50) |> collect
-ytrain = partition(batchseq(chunk(prices[2:end], 5), 0), 50) |> collect
+xbatch = Batch(train, 1:length(train), chunksize, 50, 0)
+ybatch = Batch(train, 2:length(train), chunksize, 50, 0)
 
 
-struct Batch
-    x::Array{Float64, 1}
-    range::UnitRange{Int64}
-    chunksize::Int64
-    partitionsize::Int64
-    pad::Float64
-end
-
-function minibatch(x::Array{Int64, 1}, range::UnitRange{Int64}, chunksize::Int64, partitionsize::Int64, pad::Int64)
-    chunked = chunk(x[range], chunksize)
-    batched = batchseq(chunked, pad)
-    partition(batched, partitionsize)
-end
-
-function minibatch(batch::Batch)
-    chunked = chunk(batch.x[batch.range], batch.chunksize)
-    batched = batchseq(batch.chunked, batch.pad)
-    partition(batched, partitionsize)
-end
+xtrain = minibatch(xbatch)
+ytrain = minibatch(ybatch)
 
 #TODO softmax?
 const model = Chain(
-    LSTM(5, 1),
+    LSTM(chunksize, 1),
     Dense(1, 1)
 )
 
@@ -83,5 +82,15 @@ i = 0
     Flux.train!(loss, W, zip(xtrain, ytrain), optimisation)
 end
 
-x1 = minibatch(baz, 2:length(baz), 5, 50, 0) |> collect
-x2 = minibatch(baz, 1:length(baz), 5, 50, 0) |> collect
+collectedxtrain = xtrain |> collect
+collectedytrain = ytrain |> collect
+
+trainmodel = model.(train)
+validatemodel = model.(validation)
+
+concatenated = vcat(trainmodel, validatemodel)
+
+plot(Tracker.data.(first.(concatenated)))
+plot(vcat(train, validation))
+
+trainmodel = model.(validation)
